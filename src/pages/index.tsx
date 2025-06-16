@@ -136,6 +136,70 @@ export default function Home() {
         setNoBtnPos({ x: randX, y: randY });
     };
 
+const CountdownToBirthday = () => {
+  const [timeLeft, setTimeLeft] = useState<null | {
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+  }>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const getRemainingTime = () => {
+      const targetDate = new Date("2025-06-17T00:00:00+07:00");
+      const now = new Date();
+      const diff = targetDate.getTime() - now.getTime();
+      if (diff <= 0) return null;
+
+      const seconds = Math.floor((diff / 1000) % 60);
+      const minutes = Math.floor((diff / 1000 / 60) % 60);
+      const hours = Math.floor((diff / 1000 / 60 / 60) % 24);
+      const days = Math.floor(diff / 1000 / 60 / 60 / 24);
+
+      return { days, hours, minutes, seconds };
+    };
+
+    const timer = setInterval(() => {
+      setTimeLeft(getRemainingTime());
+    }, 1000);
+
+    setTimeLeft(getRemainingTime());
+
+    return () => clearInterval(timer);
+  }, []);
+
+  if (!timeLeft) {
+    // Countdown habis, tampilkan tombol
+    return (
+      <div className="flex flex-col items-center space-y-4">
+        <div className="text-green-600 text-2xl font-bold animate-pulse">
+          🎉 Sudah ulang tahun! 🎉
+        </div>
+        <button
+          onClick={() => router.push("/ultah")}
+          className="mt-4 px-6 py-3 rounded-xl bg-pink-600 text-white text-lg font-bold shadow-lg hover:bg-pink-700 transition"
+        >
+          Jawab Pertanyaan Ulang Tahun 🎉
+        </button>
+      </div>
+    );
+  }
+
+  // Countdown berjalan
+  return (
+    <div className="text-pink-700 text-lg font-mono mt-4 bg-white px-6 py-4 rounded-xl shadow-md border-2 border-dashed border-red-300">
+      <p className="mb-2">Tunggu dulu yaa... ulang tahunmu tinggal:</p>
+      <div className="text-2xl font-bold flex gap-2 justify-center">
+        <span>🕒 {timeLeft.days} hari</span>
+        <span>⏳ {timeLeft.hours} jam</span>
+        <span>🧁 {timeLeft.minutes} menit</span>
+        <span>🎈 {timeLeft.seconds} detik</span>
+      </div>
+    </div>
+  );
+};
+
 
 
 
@@ -219,6 +283,20 @@ export default function Home() {
 
                 </section>
 
+                <section
+  id="section-3.5"
+  className="relative snap-start h-screen w-full bg-gradient-to-br from-yellow-100 via-pink-200 to-red-200 flex flex-col justify-center items-center px-4 py-8 overflow-hidden"
+>
+  <div className="flex-1 flex flex-col justify-center items-center text-center space-y-4">
+    <h2 className="text-3xl font-bold text-red-600 animate-bounce">
+      Mari kita tunggu ulang tahunmu dulu ya :D
+    </h2>
+    <CountdownToBirthday />
+  </div>
+</section>
+
+
+
                 <section id="section-4" className="relative snap-start h-screen w-full bg-gradient-to-br from-yellow-300 via-orange-400 to-red-500 flex flex-col justify-between items-center px-4 py-8">
                     <div className="flex-1 flex flex-col items-center justify-center z-10 text-center">
                         <h1 className="text-white text-4xl font-bold mb-6 animate-appear font-dancing-script">
@@ -233,6 +311,7 @@ export default function Home() {
                         ></iframe>
                     </div>
                 </section>
+                
 
 
                 {/* SECTION 5 */}
