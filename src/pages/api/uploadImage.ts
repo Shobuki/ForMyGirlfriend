@@ -1,9 +1,30 @@
 import { google } from 'googleapis';
 import { NextApiRequest, NextApiResponse } from 'next';
 import { Readable } from 'stream';
+import fs from 'fs';
+
+// --- BACA SERVICE ACCOUNT DARI ENV (file atau base64) ---
+function getServiceAccountPath(): string | undefined {
+  // Cek BASE64 dulu (Vercel production rekomendasi)
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64) {
+    const tmpPath = '/tmp/service-account.json';
+    if (!fs.existsSync(tmpPath)) {
+      fs.writeFileSync(
+        tmpPath,
+        Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64, 'base64').toString('utf8')
+      );
+    }
+    return tmpPath;
+  }
+  // Fallback ke file path dari env (lokal development)
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    return process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  }
+  return undefined;
+}
 
 export const config = {
-  api: { bodyParser: false },
+  api: { bodyParser: false }
 };
 
 function bufferToStream(buffer: Buffer): Readable {
@@ -21,20 +42,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const bodyBuffer = Buffer.concat(buffers);
 
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
-  const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!folderId || !serviceAccountJson) {
-    return res.status(500).json({ error: 'Missing GOOGLE_DRIVE_FOLDER_ID or GOOGLE_SERVICE_ACCOUNT_JSON in env' });
-  }
+  if (!folderId) return res.status(500).json({ error: 'Missing folder ID' });
 
-  let credentials: any;
-  try {
-    credentials = JSON.parse(serviceAccountJson);
-  } catch {
-    return res.status(500).json({ error: 'Invalid GOOGLE_SERVICE_ACCOUNT_JSON in env' });
+  const keyFile = getServiceAccountPath();
+  if (!keyFile || !fs.existsSync(keyFile)) {
+    return res.status(500).json({ error: 'Service Account JSON tidak ditemukan atau belum diset' });
   }
 
   const auth = new google.auth.GoogleAuth({
-    credentials,
+    keyFile,
     scopes: ['https://www.googleapis.com/auth/drive.file'],
   });
 
@@ -56,6 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       media,
       fields: 'id',
     });
+
     return res.status(200).json({ fileId: uploadRes.data.id });
   } catch (error: any) {
     console.error('Upload failed:', error.message);
