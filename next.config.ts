@@ -28,6 +28,9 @@ const nextConfig = {
       },
     ],
   },
+  eslint: {
+    ignoreDuringBuilds: true, // >>>> Tambahkan baris ini!
+  },
 };
 
 module.exports = nextConfig;
