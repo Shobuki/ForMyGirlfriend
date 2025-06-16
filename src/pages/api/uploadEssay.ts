@@ -1,23 +1,6 @@
 import { google } from 'googleapis';
 import { NextApiRequest, NextApiResponse } from 'next';
 import stream from 'stream';
-import fs from 'fs';
-import path from 'path';
-
-function getServiceAccountPath(): string {
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64) {
-    const tmpPath = '/tmp/service-account.json';
-    if (!fs.existsSync(tmpPath)) {
-      fs.writeFileSync(
-        tmpPath,
-        Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64!, 'base64').toString('utf8')
-      );
-    }
-    return tmpPath;
-  }
-  // fallback ke env local file
-  return process.env.GOOGLE_SERVICE_ACCOUNT_JSON!;
-}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -28,17 +11,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
-  if (!folderId) {
-    return res.status(500).json({ error: 'Missing GOOGLE_DRIVE_FOLDER_ID in env' });
+  const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+
+  if (!folderId || !serviceAccountJson) {
+    return res.status(500).json({ error: 'Missing GOOGLE_DRIVE_FOLDER_ID or GOOGLE_SERVICE_ACCOUNT_JSON in env' });
   }
 
-  // --- Perbaiki di sini!
-  const keyFile = getServiceAccountPath();
+  // Parse JSON dari ENV, pastikan benar!
+ let credentials: any;
+try {
+  credentials = JSON.parse(serviceAccountJson || "");
+} catch {
+  return res.status(500).json({ error: 'Invalid GOOGLE_SERVICE_ACCOUNT_JSON in ENV' });
+}
 
-  const auth = new google.auth.GoogleAuth({
-    keyFile,
-    scopes: ['https://www.googleapis.com/auth/drive.file'],
-  });
+const auth = new google.auth.GoogleAuth({
+  credentials,
+  scopes: ['https://www.googleapis.com/auth/drive.file'],
+});
 
   const drive = google.drive({ version: 'v3', auth });
 
@@ -62,10 +52,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       media,
       fields: 'id',
     });
-
     return res.status(200).json({ fileId: result.data.id });
   } catch (err: any) {
     console.error('Upload essay failed:', err.message);
-    return res.status(500).json({ error: 'Upload essay gagal' });
+    return res.status(500).json({ error: 'Upload essay gagal: ' + err.message });
   }
 }
